@@ -1,0 +1,7 @@
+[package]
+name = "kraken"
+version = "0.1.0"
+authors = ["Grant J. Gumina <grantgumina@gmail.com>"]
+
+[dependencies]
+clap = "2.31.2"
