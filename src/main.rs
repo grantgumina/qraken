@@ -72,31 +72,28 @@ fn main() {
     let password = matches.value_of("PASSWORD").unwrap().to_string();
     let command = matches.value_of("COMMAND").unwrap().to_string();
 
-    // let mut connections: Vec<(TcpStream, Session)> = Vec::new();
-
     let mut guards = vec![];
 
     for address in address_list {
         
-        let c = command.clone();
-        let a = address.clone();
+        let c = command.to_string();
+        let u = username.to_string();
+        let p = password.to_string();
+        let a = address.to_string();
+
         guards.push(spawn(move || {
-            println!("{}", a);
+
+            let (stream, session) =  create_session(&a, &u, &p);
+
+            let result = run_command(&stream, &session, &c);
+
+            println!("\nCommand Output:\n===============");
+            print!("{}", result);
         }));
-        
-        // let (stream, session) =  create_session(address, &username, &password);
-        // // let stream_session_pair = create_session(address, &username, &password);
 
-        // let result = run_command(&stream, &session, &command);
-
-        // println!("\nCommand Output:\n===============");
-        // print!("{}", result);
     }
 
     for g in guards {
         let _ = g.join();
     }
-
-    // Create connections to each supplied address
-
 }
