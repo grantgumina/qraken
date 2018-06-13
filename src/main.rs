@@ -5,27 +5,19 @@ extern crate indicatif;
 use std::io::prelude::*;
 use std::thread::spawn;
 use clap::{Arg, App};
-
 use std::sync::Arc;
 use std::net::TcpStream;
 use ssh2::Session;
 use indicatif::{ProgressBar, MultiProgress, ProgressStyle};
 
-fn create_session(address: &str, username: &str, password: &str) -> (TcpStream, Session) {
+fn create_session(address: &str, username: &str, password: &str) -> Result<(TcpStream, Session), ssh2::Error>{
     let tcp = TcpStream::connect(address).unwrap();
-    
-    // mutable reference will be copied...
     let mut session = Session::new().unwrap();
-    session.handshake(&tcp).unwrap();
     
-    match session.userauth_password(username, password) {
-        Ok(_r) => {
-            (tcp, session)
-        },
-        Err(error) => {
-            panic!("Failed to Authenticate: {}", error)
-        }
-    }
+    session.handshake(&tcp).unwrap();
+    session.userauth_password(username, password)?;
+
+    Ok((tcp, session))
 }
 
 fn run_command(session: &Session, command: &str) -> String {
@@ -88,12 +80,25 @@ fn main() {
         pb.set_style(bar_style.clone());
 
         guards.push(spawn(move || {
-            let (_stream, session) =  create_session(&a, &u, &p);
-            pb.set_message(&format!("{}: Session created", a));
-            pb.inc(1);
-            let result = run_command(&session, &c);
-            pb.set_message(&format!("{}: Command Executed", a));
-            pb.inc(2);
+            // let result: Result<(TcpStream, Session), ssh2::Error> =  create_session(&a, &u, &p)?;
+
+            match create_session(&a, &u, &p) {
+                Ok(result) => {
+                    let session = result.1;
+                    pb.set_message(&format!("{}: Session created", a));
+                    pb.inc(1);
+                    
+                    let _ = run_command(&session, &c);
+                    
+                    pb.set_message(&format!("{}: Command Executed", a));
+                    pb.inc(2);
+                    
+                },
+                Err(error) => {
+                    pb.set_message(&format!("{}: {}", a, error));
+                }
+            }
+
             pb.finish();
         }));
     }
