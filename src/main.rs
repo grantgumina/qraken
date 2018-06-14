@@ -4,6 +4,7 @@ extern crate indicatif;
 extern crate chrono;
 
 use std::io::prelude::*;
+use std::io;
 use std::fs::OpenOptions;
 use std::thread::spawn;
 use chrono::prelude::*;
@@ -31,6 +32,14 @@ fn run_command(session: &Session, command: &str) -> String {
     channel.read_to_string(&mut s).unwrap();
 
     s
+}
+
+fn append_to_file(file_path: &str, content: &str) -> Result<(), io::Error> {
+    let file = OpenOptions::new().append(true).create(true).open(file_path)?; // File will be created if it doesn't exist
+    let mut writer = std::io::BufWriter::new(file);
+    writer.write_all(content.as_bytes())?;
+    
+    Ok(())
 }
 
 fn main() {
@@ -72,7 +81,9 @@ fn main() {
 
     // Setup progress bars
     let mp = Arc::new(MultiProgress::new());
-    let bar_style = ProgressStyle::default_bar().template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}").progress_chars("##-");
+    let bar_style = ProgressStyle::default_bar()
+        .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+        .progress_chars("##-");
 
     let mut guards = vec![];
 
@@ -97,22 +108,26 @@ fn main() {
                     
                     let command_result = run_command(&session, &c).to_string();
 
+                    // Write output to file if user desires
                     if of != "xxNONExx" {
                         pb.set_message(&format!("{}: Writing to specified output file", a));
+                        pb.inc(1);
 
-                        match OpenOptions::new().append(true).create(true).open(of) {
-                            Ok(output_file) => {
-                                let file_contents = &format!("{}\n{}:\n{}\n", Utc::now(), &a, command_result);
+                        let output_file_path = of.to_string();
+                        let file_contents = &format!("{}\n{}:\n{}\n", Utc::now(), &a, command_result);
 
-                                let mut writer = std::io::BufWriter::new(&output_file);
-                                writer.write_all(file_contents.as_bytes()).unwrap();
-
+                        // Handle any sort of file errors
+                        match append_to_file(&output_file_path, file_contents) {
+                            Ok(_r) => {
+                                pb.set_message(&format!("{}: Command output written to {}", a, output_file_path));
                                 pb.inc(2);
                             },
                             Err(e) => {
                                 pb.set_message(&format!("{}: Command Executed - File write error {}", a, e))
                             }
                         }
+
+                        
                     } else {
                         pb.set_message(&format!("{}: Command Executed", a));
                         pb.inc(2);
