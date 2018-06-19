@@ -44,7 +44,7 @@ fn append_to_file(file_path: &str, content: &str) -> Result<(), io::Error> {
 
 fn main() {
 
-    let app = App::new("Kraken")
+    let app = App::new("Qraken")
         .version("0.1.0")
         .author("Grant Gumina")
         .about("Allows you to run the same command on multiple machines over ssh")
